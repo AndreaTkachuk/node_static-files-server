@@ -1,50 +1,39 @@
 const http = require('http');
 const fs = require('fs');
-const url = require('url');
-// const path = require('path');
+// const url = require('url');
+const path = require('path');
 
 function createServer() {
   const server = http.createServer((req, res) => {
-    const userUrl = new url.URL(req.url, `http://${req.headers.host}`);
-    const fileName = userUrl.pathname.slice(6);
+    const { pathname } = new URL(req.url, `http://${req.headers.host}`);
+    const normalizedPathWay = pathname.replace('/file', '') || 'index.html';
+    const pathToFile = path.join(__dirname, '..', 'public', normalizedPathWay);
 
-    const normalizedPath = `http://${req.headers.host}` + req.url;
+    res.setHeader('content-type', 'text/plain');
 
-    if (normalizedPath.includes('..')) {
-      res.writeHead(400, { 'Content-Type': 'text/plain' });
-      res.end();
-
-      return;
-    }
-
-    if (!userUrl.pathname.startsWith('/file/')) {
-      res.writeHead(200, { 'Content-Type': 'text/plain' });
-      res.end('The `pathname` does not start with `/file/`.');
+    if (!pathname.startsWith('/file')) {
+      res.statusCode = 400;
+      res.end('Routes not starting with /file/');
 
       return;
     }
 
-    if (userUrl.pathname.includes('//')) {
-      res.writeHead(404, { 'Content-Type': 'text/plain' });
-      res.end('File not found.');
+    if (pathname.includes('//')) {
+      res.statusCode = 404;
+      res.end('Paths having duplicated slashes');
 
       return;
     }
 
-    const filePath = `./public/${fileName}` || 'index.html';
-
-    fs.readFile(filePath, (err, data) => {
+    fs.readFile(pathToFile, 'utf-8', (err, file) => {
       if (err) {
-        if (err) {
-          res.writeHead(404, { 'Content-Type': 'text/plain' });
-          res.end('File not found.');
-        }
+        res.statusCode = 404;
+        res.end('Non-existent files');
 
         return;
       }
-
-      res.writeHead(200, { 'Content-Type': 'text/plain' });
-      res.end(data);
+      res.statusCode = 200;
+      res.end(file);
     });
   });
 
